@@ -25,6 +25,7 @@ fun main(args: Array<String>) {
 	println("Searching for ${args[1]} in ${args[0]}")
 
 	val localPath = Files.createTempDirectory("gitdeep");
+	//do clone into a tmp folder, so the original repo is not modified
 	val git = Git.cloneRepository().setURI(Paths.get(args[0]).toString()).setDirectory(localPath.toFile()).call();
 	// instead of checking all refs, we will walk over all object files to ensure that we'll find stuff which is no longer linked anywhere
 	unpackGitFiles(localPath)
