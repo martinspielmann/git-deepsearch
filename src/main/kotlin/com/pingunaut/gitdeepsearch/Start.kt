@@ -36,23 +36,34 @@ fun main(args: Array<String>) {
 	}
 }
 
-fun getIds(repo: Path): List<String> {
+/**
+ * Build git object IDs based on folder and file names 
+ */
+private fun getIds(repo: Path): List<String> {
 	//walk objects folder. build IDs using (two-digit) folder names + file names
 	return Files.walk(Paths.get(repo.toString(), ".git", "objects")).map { it.parent.fileName.toString() + it.fileName.toString() }.collect(Collectors.toList())
 }
 
-fun unpackGitFiles(repo: Path) {
-	// if git packed objects already, unpack them to make them searchable easily
+/**
+ * if git packed objects already, unpack them to make them searchable easily
+ */
+private fun unpackGitFiles(repo: Path) {
+	// create tmp dir
 	val tmpPackFiles = Files.createTempDirectory(repo, "TMP_PACK_FILES")
+	//mv all .pack files into tmp dir
 	Files.walk(Paths.get(repo.toString(), ".git/objects/pack")).filter { it.toString().endsWith(".pack") }.forEach {
 		val tmp = Paths.get(tmpPackFiles.toString(), it.getFileName().toString());
 		Files.move(it, tmp)
+		//unpack each pack file
 		//TODO: beautify, add windows support... this is really ugly. jgit doesn't allow low level command unpack-objects... running it from command line here
 		ProcessBuilder().command("/bin/sh", "-c", String.format("git unpack-objects < %s", tmp.getFileName().toString())).directory(tmpPackFiles.toFile()).redirectErrorStream(true).start().waitFor();
 	}
 }
 
-fun checkId(id: String, searchTerm: String, objectReader: ObjectReader) {
+/**
+ * check if the object with the given id contains the given search term
+ */
+private fun checkId(id: String, searchTerm: String, objectReader: ObjectReader) {
 	try {
 		// load object by id
 		val objectLoader = objectReader.open(ObjectId.fromString(id))
@@ -60,7 +71,7 @@ fun checkId(id: String, searchTerm: String, objectReader: ObjectReader) {
 		val content = String(objectLoader.getBytes(), StandardCharsets.UTF_8)
 		// check if it contains the search term, if yes print it
 		if (content.contains(searchTerm)) {
-			println("${id}:\n ${content}");
+			println("${id}:\n${content}");
 		}
 	} catch(e: Exception) {
 		//Just ignore for now
