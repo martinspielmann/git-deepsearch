@@ -1,0 +1,90 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.pingunaut</groupId>
+	<artifactId>git-deepsearch</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>git-deepsearch</name>
+	<description>git-deepsearch searches git objects, also no longer referenced objects</description>
+
+	<properties>
+		<java.version>1.8</java.version>
+		<jgit.version>4.8.0.201705170830-rc1</jgit.version>
+		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<kotlin.version>1.1.2</kotlin.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>${jgit.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-stdlib-jre8</artifactId>
+			<version>${kotlin.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-reflect</artifactId>
+			<version>${kotlin.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<build>
+		<sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
+		<testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>kotlin-maven-plugin</artifactId>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<version>${kotlin.version}</version>
+				<configuration>
+					<compilerPlugins>
+						<!-- <plugin>spring</plugin> -->
+					</compilerPlugins>
+					<jvmTarget>${java.version}</jvmTarget>
+				</configuration>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>test-compile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
+					</execution>
+				</executions>
+				<dependencies>
+					<!-- <dependency> -->
+					<!-- <groupId>org.jetbrains.kotlin</groupId> -->
+					<!-- <artifactId>kotlin-maven-allopen</artifactId> -->
+					<!-- <version>${kotlin.version}</version> -->
+					<!-- </dependency> -->
+				</dependencies>
+			</plugin>
+		</plugins>
+	</build>
+</project>
