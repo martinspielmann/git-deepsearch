@@ -27,15 +27,16 @@ fun main(args: Array<String>) {
 
 	println("Searching for ${args[1]} in ${args[0]}")
 
-	val localPath = Files.createTempDirectory("gitdeep");
+	val localPath = Paths.get(args[0]);
+//	val localPath = Files.createTempDirectory("gitdeep");
 	//do clone into a tmp folder, so the original repo is not modified
-	val git = Git.cloneRepository().setURI(Paths.get(args[0]).toString()).setDirectory(localPath.toFile()).call();
+//	val git = Git.cloneRepository().setURI(Paths.get(args[0]).toString()).setDirectory(localPath.toFile()).call();
 	// instead of checking all refs, we will walk over all object files to ensure that we'll find stuff which is no longer linked anywhere
-	unpackGitFiles(localPath)
+//	unpackGitFiles(localPath)
 
 
 	for (id in getIds(localPath)) {
-		checkId(id, args[1], git.repository)
+		checkId(id, args[1], localPath)
 	}
 }
 
@@ -44,7 +45,9 @@ fun main(args: Array<String>) {
  */
 private fun getIds(repo: Path): List<String> {
 	//walk objects folder. build IDs using (two-digit) folder names + file names
-	return Files.walk(Paths.get(repo.toString(), ".git", "objects")).map { it.parent.fileName.toString() + it.fileName.toString() }.collect(Collectors.toList())
+	return Files.walk(Paths.get(repo.toString(), ".git", "objects"))
+			.filter{ val name = it.parent.fileName.toString(); !(name.equals("objects")||name.equals("pack")||name.equals("info")) }
+			.map { it.parent.fileName.toString() + it.fileName.toString() }.collect(Collectors.toList())
 }
 
 /**
@@ -66,44 +69,52 @@ private fun unpackGitFiles(repo: Path) {
 /**
  * check if the object with the given id contains the given search term
  */
-private fun checkId(id: String, searchTerm: String, repo: Repository) {
-	val objectReader = repo.newObjectReader()
-	var hit = false;
-	try {
-		// load object by id
-		val objId = ObjectId.fromString(id);
-		val objectLoader = objectReader.open(objId)
-		val type = objectLoader.getType();
-		val content = String(objectLoader.getBytes(), StandardCharsets.UTF_8)
-
-		// check if it contains the search term, if yes print it
-		if (content.contains(searchTerm)) {
-			println("${id}:\n${content}");
-			hit = true
-		}
-
-		if (!hit) {
-			val commit = getCommit(repo, objId)
-			val m = commit.getFullMessage()
-//			println(type)
-			// check commit message also
-			if (m.contains(searchTerm)) {
-				println("${id}:\n${content}");
-				hit = true
-			}
-
-		}
-	} catch(e: Exception) {
-		//Just ignore for now
-//		e.printStackTrace();
+private fun checkId(id: String, searchTerm: String, localPath: Path) {
+	val p = ProcessBuilder().command("/bin/sh", "-c", String.format("git cat-file -p %s", id)).directory(localPath.toFile()).redirectErrorStream(true).start()
+	p.waitFor()
+	val content = p.getInputStream().bufferedReader().use { it.readText() }  // defaults to UTF-8			
+// check if it contains the search term, if yes print it
+	if (content.contains(searchTerm)) {
+		println("${id}:\n${content}");
 	}
-}
+
+//	val objectReader = repo.newObjectReader()
+//	var hit = false;
+//	try {
+//		// load object by id
+//		val objId = ObjectId.fromString(id);
+//		val objectLoader = objectReader.open(objId)
+//		val type = objectLoader.getType();
+//		val content = String(objectLoader.getBytes(), StandardCharsets.UTF_8)
+//
+//		// check if it contains the search term, if yes print it
+//		if (content.contains(searchTerm)) {
+//			println("${id}:\n${content}");
+//			hit = true
+//		}
+//
+//		if (!hit) {
+//			val commit = getCommit(repo, objId)
+//			val m = commit.getFullMessage()
+////			println(type)
+//			// check commit message also
+//			if (m.contains(searchTerm)) {
+//				println("${id}:\n${content}");
+//				hit = true
+//			}
+//
+//		}
+//	} catch(e: Exception) {
+//		//Just ignore for now
+////		e.printStackTrace();
+//	}
+	}
 
 
-private fun getCommit(repo: Repository, id: ObjectId): RevCommit {
-	val revWalk = RevWalk(repo)
-	val commit = revWalk.parseCommit(id)
-	revWalk.close()
-	return commit
-}
+	private fun getCommit(repo: Repository, id: ObjectId): RevCommit {
+		val revWalk = RevWalk(repo)
+		val commit = revWalk.parseCommit(id)
+		revWalk.close()
+		return commit
+	}
 
