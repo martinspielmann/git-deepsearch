@@ -12,6 +12,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import java.lang.Exception
 import java.util.concurrent.Executors
 import org.eclipse.jgit.lib.ObjectReader
+import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.revwalk.RevWalk
 
 @SpringBootApplication
 class Start
@@ -30,15 +33,14 @@ fun main(args: Array<String>) {
 	// instead of checking all refs, we will walk over all object files to ensure that we'll find stuff which is no longer linked anywhere
 	unpackGitFiles(localPath)
 
-	val objectReader = git.repository.newObjectReader()
 
 	for (id in getIds(localPath)) {
-		checkId(id, args[1], objectReader)
+		checkId(id, args[1], git.repository)
 	}
 }
 
 /**
- * Build git object IDs based on folder and file names 
+ * Build git object IDs based on folder and file names
  */
 private fun getIds(repo: Path): List<String> {
 	//walk objects folder. build IDs using (two-digit) folder names + file names
@@ -64,19 +66,44 @@ private fun unpackGitFiles(repo: Path) {
 /**
  * check if the object with the given id contains the given search term
  */
-private fun checkId(id: String, searchTerm: String, objectReader: ObjectReader) {
+private fun checkId(id: String, searchTerm: String, repo: Repository) {
+	val objectReader = repo.newObjectReader()
+	var hit = false;
 	try {
 		// load object by id
-		val objectLoader = objectReader.open(ObjectId.fromString(id))
-//			val type = objectLoader.getType(); 
+		val objId = ObjectId.fromString(id);
+		val objectLoader = objectReader.open(objId)
+		val type = objectLoader.getType();
 		val content = String(objectLoader.getBytes(), StandardCharsets.UTF_8)
+
 		// check if it contains the search term, if yes print it
 		if (content.contains(searchTerm)) {
 			println("${id}:\n${content}");
+			hit = true
+		}
+
+		if (!hit) {
+			val commit = getCommit(repo, objId)
+			val m = commit.getFullMessage()
+//			println(type)
+			// check commit message also
+			if (m.contains(searchTerm)) {
+				println("${id}:\n${content}");
+				hit = true
+			}
+
 		}
 	} catch(e: Exception) {
 		//Just ignore for now
-		//e.printStackTrace();
+//		e.printStackTrace();
 	}
+}
+
+
+private fun getCommit(repo: Repository, id: ObjectId): RevCommit {
+	val revWalk = RevWalk(repo)
+	val commit = revWalk.parseCommit(id)
+	revWalk.close()
+	return commit
 }
 
