@@ -15,6 +15,9 @@ import org.eclipse.jgit.lib.ObjectReader
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevWalk
+import java.nio.file.StandardCopyOption
+import org.apache.commons.io.FileUtils
+import java.nio.file.StandardOpenOption
 
 @SpringBootApplication
 class Start
@@ -24,17 +27,13 @@ fun main(args: Array<String>) {
 		println("please provide a local repository path (1) and a search regex (2) as parameter")
 		System.exit(1);
 	}
-
+	Files.deleteIfExists(Paths.get("output"))
+	Files.createFile(Paths.get("output"));
 	println("Searching for ${args[1]} in ${args[0]}")
-
-	val localPath = Paths.get(args[0]);
-//	val localPath = Files.createTempDirectory("gitdeep");
-	//do clone into a tmp folder, so the original repo is not modified
-//	val git = Git.cloneRepository().setURI(Paths.get(args[0]).toString()).setDirectory(localPath.toFile()).call();
+	val localPath = Files.createTempDirectory("gitdeep");
+	FileUtils.copyDirectory(Paths.get(args[0]).toFile(), localPath.toFile())
 	// instead of checking all refs, we will walk over all object files to ensure that we'll find stuff which is no longer linked anywhere
-//	unpackGitFiles(localPath)
-
-
+	unpackGitFiles(localPath)
 	for (id in getIds(localPath)) {
 		checkId(id, args[1], localPath)
 	}
@@ -46,7 +45,7 @@ fun main(args: Array<String>) {
 private fun getIds(repo: Path): List<String> {
 	//walk objects folder. build IDs using (two-digit) folder names + file names
 	return Files.walk(Paths.get(repo.toString(), ".git", "objects"))
-			.filter{ val name = it.parent.fileName.toString(); !(name.equals("objects")||name.equals("pack")||name.equals("info")) }
+//			.filter{ val name = it.parent.fileName.toString(); !(name.equals("objects")||name.equals("pack")||name.equals("info")) }
 			.map { it.parent.fileName.toString() + it.fileName.toString() }.collect(Collectors.toList())
 }
 
@@ -54,15 +53,17 @@ private fun getIds(repo: Path): List<String> {
  * if git packed objects already, unpack them to make them searchable easily
  */
 private fun unpackGitFiles(repo: Path) {
-	// create tmp dir
-	val tmpPackFiles = Files.createTempDirectory(repo, "TMP_PACK_FILES")
-	//mv all .pack files into tmp dir
-	Files.walk(Paths.get(repo.toString(), ".git/objects/pack")).filter { it.toString().endsWith(".pack") }.forEach {
-		val tmp = Paths.get(tmpPackFiles.toString(), it.getFileName().toString());
-		Files.move(it, tmp)
-		//unpack each pack file
-		//TODO: beautify, add windows support... this is really ugly. jgit doesn't allow low level command unpack-objects... running it from command line here
-		ProcessBuilder().command("/bin/sh", "-c", String.format("git unpack-objects < %s", tmp.getFileName().toString())).directory(tmpPackFiles.toFile()).redirectErrorStream(true).start().waitFor();
+	if (Files.exists(Paths.get(repo.toString(), ".git/objects/pack"))) {
+		// create tmp dir
+		val tmpPackFiles = Files.createTempDirectory(repo, "TMP_PACK_FILES")
+		//mv all .pack files into tmp dir
+		Files.walk(Paths.get(repo.toString(), ".git/objects/pack")).filter { it.toString().endsWith(".pack") }.forEach {
+			val tmp = Paths.get(tmpPackFiles.toString(), it.getFileName().toString());
+			Files.move(it, tmp)
+			//unpack each pack file
+			//TODO: beautify, add windows support... this is really ugly. jgit doesn't allow low level command unpack-objects... running it from command line here
+			ProcessBuilder().command("/bin/sh", "-c", String.format("git unpack-objects < %s", tmp.getFileName().toString())).directory(tmpPackFiles.toFile()).redirectErrorStream(true).start().waitFor();
+		}
 	}
 }
 
@@ -77,44 +78,15 @@ private fun checkId(id: String, searchTerm: String, localPath: Path) {
 	if (content.contains(searchTerm)) {
 		println("${id}:\n${content}");
 	}
-
-//	val objectReader = repo.newObjectReader()
-//	var hit = false;
-//	try {
-//		// load object by id
-//		val objId = ObjectId.fromString(id);
-//		val objectLoader = objectReader.open(objId)
-//		val type = objectLoader.getType();
-//		val content = String(objectLoader.getBytes(), StandardCharsets.UTF_8)
-//
-//		// check if it contains the search term, if yes print it
-//		if (content.contains(searchTerm)) {
-//			println("${id}:\n${content}");
-//			hit = true
-//		}
-//
-//		if (!hit) {
-//			val commit = getCommit(repo, objId)
-//			val m = commit.getFullMessage()
-////			println(type)
-//			// check commit message also
-//			if (m.contains(searchTerm)) {
-//				println("${id}:\n${content}");
-//				hit = true
-//			}
-//
-//		}
-//	} catch(e: Exception) {
-//		//Just ignore for now
-////		e.printStackTrace();
-//	}
-	}
+	
+	Files.write(Paths.get("output"), "${id}:\n${content}\n".toByteArray(), StandardOpenOption.APPEND)
+}
 
 
-	private fun getCommit(repo: Repository, id: ObjectId): RevCommit {
-		val revWalk = RevWalk(repo)
-		val commit = revWalk.parseCommit(id)
-		revWalk.close()
-		return commit
-	}
+private fun getCommit(repo: Repository, id: ObjectId): RevCommit {
+	val revWalk = RevWalk(repo)
+	val commit = revWalk.parseCommit(id)
+	revWalk.close()
+	return commit
+}
 
