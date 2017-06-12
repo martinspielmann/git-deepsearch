@@ -1,3 +1,8 @@
+'''
+Usage: python3 git-deepsearch.py REPO_PATH SEARCH_TERM
+
+'''
+
 import sys
 import os
 import subprocess
